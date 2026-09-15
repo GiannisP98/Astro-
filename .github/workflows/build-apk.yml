@@ -24,6 +24,12 @@ jobs:
         with:
           path: ~/.android/debug.keystore
           key: bridgeastro-debug-keystore-v1
+      - name: Ensure stable debug signing key exists
+        run: |
+          mkdir -p "$HOME/.android"
+          if [ ! -f "$HOME/.android/debug.keystore" ]; then
+            keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -dname "CN=Bridge Astro Mobile Debug,O=Bridge Astro,C=GR" -keyalg RSA -keysize 2048 -validity 10000
+          fi
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -32,5 +38,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BridgeAstroMobile-v0.1.2-stable-signing
+          name: BridgeAstroMobile-v0.1.2-stable-baseline
           path: app/build/outputs/apk/debug/app-debug.apk
