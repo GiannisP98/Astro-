@@ -27,5 +27,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BridgeAstroMobile-v0.1.1-debug
+          name: BridgeAstroMobile-v0.1.2-debug
           path: app/build/outputs/apk/debug/app-debug.apk
