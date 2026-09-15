@@ -1,0 +1,2 @@
+Bridge Astro Mobile stable sideload signing baseline established at v0.1.2.
+Future GitHub Actions builds should restore bridgeastro-debug-keystore-v1 before assembling APKs.
