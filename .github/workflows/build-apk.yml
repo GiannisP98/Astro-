@@ -15,6 +15,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Apply v0.2.1 final-safety patch
+        run: python .github/patches/mobile_v021_final_safety.py
+      - name: Verify patched source
+        run: |
+          grep -q 'ANDROID-0.2.1-FINAL-SAFETY' app/src/main/java/com/bridgeastro/mobile/MobileUpdater.java
+          grep -q "versionName '0.2.1'" app/build.gradle
+          grep -q 'failed/partial batch discarded' app/src/main/java/com/bridgeastro/mobile/MobileUpdater.java
+          grep -q 'CANON|' app/src/main/java/com/bridgeastro/mobile/MobileUpdater.java
       - name: Accept Android SDK licenses
         run: yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
       - name: Install Android SDK 35
@@ -42,5 +50,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BridgeAstroMobile-v0.2.0-OFFICIAL-FIRST
+          name: BridgeAstroMobile-v0.2.1-FINAL-SAFETY
           path: app/build/outputs/apk/debug/app-debug.apk
