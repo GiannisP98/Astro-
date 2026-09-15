@@ -33,6 +33,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 public class MainActivity extends Activity {
     private static final int REQ_FILE_CHOOSER = 9001;
@@ -49,9 +50,11 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         tokenStore = new TokenStore(this);
         updater = new MobileUpdater(this, tokenStore);
+
         FrameLayout root = new FrameLayout(this);
         webView = new WebView(this);
         root.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
         Button menu = new Button(this);
         menu.setText("⋮"); menu.setTextSize(23); menu.setTextColor(Color.WHITE);
         menu.setBackgroundColor(Color.argb(220, 7, 19, 29)); menu.setPadding(0,0,0,4);
@@ -59,8 +62,39 @@ public class MainActivity extends Activity {
         mp.gravity = Gravity.TOP | Gravity.END; mp.setMargins(0, dp(10), dp(10), 0);
         root.addView(menu, mp); menu.setOnClickListener(v -> showMobileMenu());
         setContentView(root);
+
+        ensureMsi2OnImportedEngine();
         configureWebView();
         webView.loadUrl("https://astro.local/index.html");
+    }
+
+    private void ensureMsi2OnImportedEngine() {
+        File engine = new File(getFilesDir(), ENGINE_FILE);
+        if (!engine.exists()) return;
+        try {
+            byte[] oldBytes;
+            try (InputStream in = new FileInputStream(engine)) { oldBytes = readAllBytes(in); }
+            String html = new String(oldBytes, StandardCharsets.UTF_8);
+            if (html.contains("2026.09.15.MSI2.0-OFFICIAL-FIRST")) return;
+            final String needle = "const TOOL_MSIWARN_B64=\"";
+            int a = html.indexOf(needle);
+            if (a < 0) return;
+            int valueStart = a + needle.length();
+            int valueEnd = html.indexOf('"', valueStart);
+            if (valueEnd < 0) return;
+            byte[] msiBytes = readGzipBase64Asset("msi_v2.html.gz.b64");
+            String b64 = android.util.Base64.encodeToString(msiBytes, android.util.Base64.NO_WRAP);
+            String patched = html.substring(0, valueStart) + b64 + html.substring(valueEnd);
+            if (!patched.contains("TOOL_MSIWARN_B64")) throw new Exception("MSI payload bridge marker missing after migration.");
+            File tmp = new File(getFilesDir(), ENGINE_FILE + ".tmp");
+            try (FileOutputStream out = new FileOutputStream(tmp, false)) { out.write(patched.getBytes(StandardCharsets.UTF_8)); }
+            if (!tmp.renameTo(engine)) {
+                try (FileOutputStream out = new FileOutputStream(engine, false)) { out.write(patched.getBytes(StandardCharsets.UTF_8)); }
+                tmp.delete();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "MSI2 engine migration warning: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void configureWebView() {
@@ -112,7 +146,7 @@ public class MainActivity extends Activity {
                     return response("application/json", bytes(r.toJson().toString()), r.ok ? 200 : 500, r.ok ? "OK" : "Update Failed");
                 }
                 if ("/api/mobile-info".equals(path)) {
-                    JSONObject j = new JSONObject().put("mode", "BUNDLED_ENGINE_NATIVE_UPDATER").put("nativeSeaLagom", true)
+                    JSONObject j = new JSONObject().put("mode", "BUNDLED_MSI2_NATIVE_UPDATER").put("nativeSeaLagom", true)
                             .put("nativeOfficialLive", true).put("verifiedV79Seed", true).put("mobileVersion", BuildConfig.VERSION_NAME);
                     return response("application/json", bytes(j.toString()), 200, "OK");
                 }
@@ -137,11 +171,11 @@ public class MainActivity extends Activity {
     void openSettingsFromBridge() { showMobileMenu(); }
 
     private void showMobileMenu() {
-        String engineState = importedEngineExists() ? "✓ Alternate ASTRO engine imported" : "Bundled ASTRO engine active";
+        String engineState = importedEngineExists() ? "✓ ASTRO engine installed · MSI2 migration active" : "Bundled shell · import ASTRO engine if needed";
         String tokenState = tokenStore.hasToken() ? "✓ SeaLagom token configured" : "Configure SeaLagom token";
         String[] items = new String[]{engineState, tokenState, "Import WORLD MSI cache", "Import alternate ASTRO engine", "Reload ASTRO", "Remove alternate engine"};
         new AlertDialog.Builder(this).setTitle("Bridge Astro Mobile " + BuildConfig.VERSION_NAME).setItems(items, (d, which) -> {
-            if (which == 0) Toast.makeText(this, importedEngineExists()?"Using imported engine override.":"Using bundled MSI2.0 engine.", Toast.LENGTH_SHORT).show();
+            if (which == 0) Toast.makeText(this, importedEngineExists()?"Using full ASTRO engine with MSI2 official-first core.":"No imported full ASTRO engine found.", Toast.LENGTH_SHORT).show();
             else if (which == 1) showTokenDialog();
             else if (which == 2) chooseCache();
             else if (which == 3) chooseEngine();
@@ -165,7 +199,7 @@ public class MainActivity extends Activity {
 
     private void removeEngine() {
         File f = new File(getFilesDir(), ENGINE_FILE); if (f.exists() && !f.delete()) { Toast.makeText(this,"Could not remove alternate engine.",Toast.LENGTH_LONG).show(); return; }
-        Toast.makeText(this,"Bundled engine restored.",Toast.LENGTH_SHORT).show(); webView.loadUrl("https://astro.local/index.html");
+        Toast.makeText(this,"Imported engine removed.",Toast.LENGTH_SHORT).show(); webView.loadUrl("https://astro.local/index.html");
     }
 
     @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -178,7 +212,8 @@ public class MainActivity extends Activity {
                 String head = new String(bytes, 0, Math.min(bytes.length, 4096), StandardCharsets.UTF_8).toLowerCase();
                 if (!head.contains("<html") && !head.contains("<!doctype")) throw new Exception("Selected file does not look like HTML.");
                 try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), ENGINE_FILE), false)) { out.write(bytes); }
-                Toast.makeText(this, "Alternate ASTRO engine imported: " + (bytes.length / 1024 / 1024) + " MB", Toast.LENGTH_LONG).show(); webView.loadUrl("https://astro.local/index.html");
+                ensureMsi2OnImportedEngine();
+                Toast.makeText(this, "ASTRO engine imported and MSI2 migration checked: " + (bytes.length / 1024 / 1024) + " MB", Toast.LENGTH_LONG).show(); webView.loadUrl("https://astro.local/index.html");
             } catch (Exception e) { Toast.makeText(this, "Engine import failed: " + e.getMessage(), Toast.LENGTH_LONG).show(); }
         } else if (requestCode == REQ_IMPORT_CACHE) {
             try (InputStream in = getContentResolver().openInputStream(uri)) {
@@ -186,6 +221,13 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "WORLD MSI cache imported.", Toast.LENGTH_LONG).show(); webView.reload();
             } catch (Exception e) { Toast.makeText(this, "Cache import failed: " + e.getMessage(), Toast.LENGTH_LONG).show(); }
         }
+    }
+
+    private byte[] readGzipBase64Asset(String name) throws Exception {
+        byte[] ascii;
+        try (InputStream in = getAssets().open(name)) { ascii = readAllBytes(in); }
+        byte[] gz = android.util.Base64.decode(ascii, android.util.Base64.DEFAULT);
+        try (GZIPInputStream zin = new GZIPInputStream(new ByteArrayInputStream(gz))) { return readAllBytes(zin); }
     }
 
     private boolean importedEngineExists() { return new File(getFilesDir(), ENGINE_FILE).exists(); }
