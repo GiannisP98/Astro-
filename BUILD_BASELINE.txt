@@ -1,2 +1,5 @@
-Bridge Astro Mobile stable sideload signing baseline established at v0.1.2.
-Future GitHub Actions builds should restore bridgeastro-debug-keystore-v1 before assembling APKs.
+Bridge Astro Mobile build baseline
+Version: 0.2.0
+MSI core: 2026.09.15.MSI2.0-OFFICIAL-FIRST
+Native updater: ANDROID-0.2.0-OFFICIAL-FIRST
+Policy: official NAVAREA/WMO/national sources first; SeaLagom supplemental; conservative geometry only.
