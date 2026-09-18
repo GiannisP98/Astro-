@@ -46,7 +46,7 @@ async function renderView(v) {
   });
   page.on("pageerror", e => errors.push(String(e)));
 
-  await page.setContent(\`<!doctype html>
+  await page.setContent(`<!doctype html>
 <html><head><meta charset="utf-8">
 <style>
 html,body,#map{margin:0;width:100%;height:100%;overflow:hidden;background:#dcebf0}
@@ -56,7 +56,7 @@ color:#1d2830;border:1px solid rgba(0,0,0,.28);padding:5px 9px;border-radius:3px
 font:600 13px/1.25 Arial,sans-serif;letter-spacing:.2px}
 </style></head>
 <body><div id="map"></div><div id="mark">REFERENCE ONLY · NOT FOR NAVIGATION · NOT AN ENC<br>
-<span style="font-weight:400">© Open Waters: Seamap · © OpenStreetMap contributors</span></div></body></html>\`);
+<span style="font-weight:400">© Open Waters: Seamap · © OpenStreetMap contributors</span></div></body></html>`);
 
   await page.addStyleTag({path:"node_modules/maplibre-gl/dist/maplibre-gl.css"});
   await page.addScriptTag({path:"node_modules/maplibre-gl/dist/maplibre-gl.js"});
@@ -101,7 +101,7 @@ font:600 13px/1.25 Arial,sans-serif;letter-spacing:.2px}
   // Give glyphs/sprites one last frame after idle.
   await page.waitForTimeout(1000);
   const ext = v.fmt === "png" ? "png" : "jpg";
-  const file = \`\${v.id}.\${ext}\`;
+  const file = `${v.id}.${ext}`;
   const out = path.join(OUT,file);
   if(v.fmt === "png") {
     await page.screenshot({path:out,type:"png"});
@@ -116,7 +116,7 @@ font:600 13px/1.25 Arial,sans-serif;letter-spacing:.2px}
     width:v.w,height:v.h,format:v.fmt,
     bytes:stat.size,console_errors:errors.slice(0,20)
   });
-  console.log(\`\${v.id}: \${(stat.size/1048576).toFixed(2)} MiB z=\${result.zoom.toFixed(2)}\`);
+  console.log(`${v.id}: ${(stat.size/1048576).toFixed(2)} MiB z=${result.zoom.toFixed(2)}`);
   await page.close();
 }
 
@@ -139,9 +139,9 @@ fs.writeFileSync(path.join(OUT,"tiles.json"), JSON.stringify({
 },null,2));
 
 fs.writeFileSync(path.join(OUT,"SOURCE_INFO.txt"),
-\`PH → LANSHAN FULL NAUTICAL REFERENCE RASTER SET
+`PH → LANSHAN FULL NAUTICAL REFERENCE RASTER SET
 Generated from: Open Waters: Seamap
-Source style: \${STYLE}
+Source style: ${STYLE}
 
 Map content is rendered from open marine datasets used by Open Waters:
 - OpenStreetMap / OpenSeaMap-tagged features for coastline, harbours and seamarks
@@ -157,7 +157,7 @@ Attribution:
 © Open Waters: Seamap — https://openwaters.io/charts/seamap
 © OpenStreetMap contributors — ODbL
 See upstream source/license information for additional source terms.
-\`);
+`);
 
 if (failures.length) {
   console.error("Some renders failed:", failures);
