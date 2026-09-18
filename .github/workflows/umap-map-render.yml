@@ -1,0 +1,36 @@
+name: Build UMAP Full Nautical Map Pack
+on:
+  push:
+    branches: [ umap-map-build-20260919 ]
+  workflow_dispatch:
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install renderer
+        run: |
+          npm init -y
+          npm install playwright@1.55.0 maplibre-gl@5.7.3
+          npx playwright install --with-deps chromium
+      - name: Render real nautical map layers
+        run: node .github/umap-map/render.mjs
+      - name: Show render inventory
+        if: always()
+        run: |
+          du -h rendered-map/* || true
+          cat rendered-map/tiles.json || true
+      - name: Upload rendered nautical rasters
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PH-LANSHAN-FULL-NAUTICAL-RASTERS
+          path: rendered-map/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
